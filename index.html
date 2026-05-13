@@ -168,6 +168,8 @@
 
   .status-text strong { font-weight: 600; color: var(--text-secondary); }
 
+  .status-spacer { flex: 1; min-width: 12px; }
+
   .btn-refresh {
     font-size: 15px;
     line-height: 1;
@@ -185,11 +187,11 @@
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .countdown-text {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-    margin-left: auto;
+  .btn-config,
+  .sheet-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-family: 'DM Sans', sans-serif;
     font-size: 11px;
     color: var(--text-muted);
@@ -198,10 +200,23 @@
     border-radius: 8px;
     padding: 5px 10px;
     cursor: pointer;
-    transition: color 0.15s;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
 
-  .btn-config:hover { color: var(--text-primary); }
+  .btn-config:hover,
+  .sheet-link:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+    background: var(--surface);
+  }
+
+  .sheet-link svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+    flex-shrink: 0;
+  }
 
   /* ── GROUP BAR ── */
   .group-bar {
@@ -295,6 +310,95 @@
     margin-bottom: 10px;
   }
 
+  .selection-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .selection-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .selection-summary span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .selection-summary strong {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-secondary,
+  .btn-save {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  }
+
+  .btn-secondary {
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+  .btn-save {
+    color: var(--bg);
+    background: var(--text-primary);
+    border: 1px solid var(--text-primary);
+  }
+
+  .btn-save svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    flex-shrink: 0;
+  }
+
+  .btn-save:hover { opacity: 0.86; }
+  .btn-save:disabled,
+  .btn-secondary:disabled { opacity: 0.45; cursor: default; }
+
+  .selection-message {
+    min-height: 18px;
+    margin: -4px 0 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .selection-message.error { color: var(--accent-lula); }
+  .selection-message.success { color: var(--accent-bolso); }
+
   /* ── CARDS ── */
   .cards-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -313,6 +417,25 @@
   }
 
   .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); background: var(--surface-hover); }
+  .card.selected { border-color: rgba(45, 122, 58, 0.35); }
+  .card.unselected { border-style: dashed; }
+  .card.unselected .avatar,
+  .card.unselected .card-body,
+  .card.unselected .card-score { opacity: 0.62; }
+
+  .card-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .selection-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-bolso);
+    cursor: pointer;
+  }
 
   .card:nth-child(1) { animation-delay: 0.04s; }
   .card:nth-child(2) { animation-delay: 0.08s; }
@@ -406,6 +529,16 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
+  @media (max-width: 640px) {
+    body { padding: 28px 18px 44px; }
+    .stats-row { grid-template-columns: 1fr; }
+    .selection-toolbar { align-items: stretch; }
+    .selection-actions { width: 100%; }
+    .selection-actions button { flex: 1; }
+    .card { align-items: flex-start; padding: 14px; }
+    .card-score { min-width: 54px; }
+  }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -438,7 +571,15 @@
       <div class="status-dot" id="statusDot"></div>
       <span class="status-text" id="statusText">Conectando…</span>
       <button class="btn-refresh" id="refreshBtn" onclick="manualRefresh()" title="Atualizar agora">↻</button>
-      <span class="countdown-text" id="countdownText"></span>
+      <span class="status-spacer"></span>
+      <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1W0tpC8KtMR5Tgs-yZZhaQNI17HHmKMM8Eovd94lTmHA/edit?usp=sharing" target="_blank" rel="noopener noreferrer" title="Abrir Google Sheets">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 3h6v6"></path>
+          <path d="M10 14 21 3"></path>
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        </svg>
+        Planilha
+      </a>
       <button class="btn-config" onclick="resetSetup()">⚙ Reconfigurar</button>
     </div>
 
@@ -450,7 +591,7 @@
     <!-- Header -->
     <div class="header">
       <div class="header-label">Recrutamento qualitativo</div>
-      <div class="header-title">Participantes Selecionados — <span id="headerGroup">…</span></div>
+      <div class="header-title">Seleção de participantes — <span id="headerGroup">…</span></div>
     </div>
 
     <!-- Stats -->
@@ -461,7 +602,7 @@
       </div>
       <div class="stat-card">
         <div class="stat-value" id="statAvg">—</div>
-        <div class="stat-label">Média de engajamento</div>
+        <div class="stat-label">Média de engajamento selecionada</div>
       </div>
       <div class="stat-card">
         <div class="stat-value" id="statVoto">— / — / —</div>
@@ -470,11 +611,31 @@
     </div>
 
     <!-- Section label -->
-    <div class="section-label">Fichas · ordenado por engajamento</div>
+    <div class="section-label">Fichas · todos os candidatos · ordenado por engajamento</div>
+
+    <div class="selection-toolbar">
+      <div class="selection-summary">
+        <span>Seleção no HTML</span>
+        <strong id="selectionCount">—</strong>
+      </div>
+      <div class="selection-actions">
+        <button class="btn-secondary" id="selectAllBtn" onclick="selectActiveGroup(true)">Marcar grupo</button>
+        <button class="btn-secondary" id="clearGroupBtn" onclick="selectActiveGroup(false)">Limpar grupo</button>
+        <button class="btn-save" id="saveBtn" onclick="saveSelections()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path>
+            <path d="M17 21v-8H7v8"></path>
+            <path d="M7 3v5h8"></path>
+          </svg>
+          Enviar seleção
+        </button>
+      </div>
+    </div>
+    <div class="selection-message" id="selectionMessage"></div>
 
     <!-- Cards -->
     <div class="cards-list" id="cardsList"></div>
-    <div class="empty-state hidden" id="emptyState">Nenhum participante selecionado neste grupo.</div>
+    <div class="empty-state hidden" id="emptyState">Nenhum participante encontrado neste grupo.</div>
 
     <!-- Footer -->
     <div class="footer">
@@ -490,16 +651,18 @@
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const STORAGE_KEY   = 'ipsos_script_url';
-const REFRESH_MS    = 60000; // atualiza a cada 60 segundos
+const STORAGE_KEY = 'ipsos_script_url';
+const SHEET_ID = '1W0tpC8KtMR5Tgs-yZZhaQNI17HHmKMM8Eovd94lTmHA';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?usp=sharing`;
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`;
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6ZqTzSp4-89hWIzD0c0lHAvW7mfrFKeROPi7pDS1xRBy215ke_V6pHybOFKyU-b8diQ/exec';
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let allData      = [];
-let activeGroup  = 'Grupo 2';
-let refreshTimer = null;
-let countdownTimer = null;
-let countdownSecs  = 60;
-let scriptUrl = 'https://script.google.com/macros/s/AKfycby6ZqTzSp4-89hWIzD0c0lHAvW7mfrFKeROPi7pDS1xRBy215ke_V6pHybOFKyU-b8diQ/exec'; // :contentReference[oaicite:0]{index=0}
+let allData = [];
+let activeGroup = 'Grupo 2';
+let selectionState = new Map();
+let saveInProgress = false;
+let scriptUrl = getStoredScriptUrl() || DEFAULT_SCRIPT_URL;
 
 // ── DATA MAPS ─────────────────────────────────────────────────────────────────
 const VOTO_MAP = {
@@ -518,25 +681,36 @@ const IDEO_MAP = {
   '07 – Totalmente à esquerda': { cls: 'esq-total', label: 'Tot. à esquerda' },
 };
 
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function getStoredScriptUrl() {
+  try { return localStorage.getItem(STORAGE_KEY); }
+  catch { return null; }
+}
+
+function setStoredScriptUrl(url) {
+  try { localStorage.setItem(STORAGE_KEY, url); }
+  catch {}
+}
+
 function formatOcup(raw) {
   if (!raw) return '';
-  if (/tempo integral/i.test(raw))  return 'Trabalha tempo integral';
-  if (/meio período/i.test(raw))    return 'Trabalha meio período';
-  if (/desempregad/i.test(raw))     return 'Desempregado/a';
-  if (/estudant/i.test(raw))        return 'Estudante';
-  if (/aposentad/i.test(raw))       return 'Aposentado/a';
+  if (/tempo integral/i.test(raw)) return 'Trabalha tempo integral';
+  if (/meio período/i.test(raw)) return 'Trabalha meio período';
+  if (/desempregad/i.test(raw)) return 'Desempregado/a';
+  if (/estudant/i.test(raw)) return 'Estudante';
+  if (/aposentad/i.test(raw)) return 'Aposentado/a';
   return raw;
 }
 
 function initials(full) {
   const parts = (full || '').trim().split(/\s+/).filter(p => !/^(de|da|do|dos|das|e)$/i.test(p));
-  return ((parts[0]?.[0] ?? '') + (parts[parts.length-1]?.[0] ?? '')).toUpperCase();
+  return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
 }
 
 function shortName(full) {
   const parts = (full || '').trim().split(/\s+/).filter(p => !/^(de|da|do|dos|das|e)$/i.test(p));
   if (parts.length <= 1) return parts[0] ?? '';
-  return `${parts[0]} ${parts[parts.length-1][0]}.`;
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
 }
 
 function fmt(n) {
@@ -544,77 +718,217 @@ function fmt(n) {
   return n.toFixed(2).replace('.', ',').replace(',00', ',0');
 }
 
-// ── FETCH ─────────────────────────────────────────────────────────────────────
-async function fetchData() {
-  const url = scriptUrl + (scriptUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-  const res  = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Erro desconhecido no script.');
-  return json.data;
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
 
-function startCountdown() {
-  clearInterval(countdownTimer);
-  countdownSecs = 60;
-  const el = document.getElementById('countdownText');
-  el.textContent = `· ${countdownSecs}s`;
-  countdownTimer = setInterval(() => {
-    countdownSecs--;
-    if (countdownSecs <= 0) {
-      el.textContent = '· atualizando…';
-      clearInterval(countdownTimer);
-    } else {
-      el.textContent = `· ${countdownSecs}s`;
+function normalizeText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function numberValue(raw) {
+  const normalized = String(raw ?? '').trim().replace(',', '.');
+  if (!normalized) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+function average(values) {
+  const nums = values.filter(value => value !== null && value !== undefined && !Number.isNaN(value));
+  return nums.length ? nums.reduce((sum, value) => sum + value, 0) / nums.length : null;
+}
+
+function isSelectedValue(raw) {
+  const value = normalizeText(raw);
+  return value === 'sim' || value === 'yes' || value === 'true' || value === '1' || value === 'x';
+}
+
+function participantKey(p) {
+  return p.id ? `id:${p.id}` : `row:${p.rowNumber}`;
+}
+
+function isParticipantSelected(p) {
+  const key = participantKey(p);
+  if (selectionState.has(key)) return selectionState.get(key);
+  return Boolean(p.selected ?? p.sheetSelected);
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ── SHEET READ ────────────────────────────────────────────────────────────────
+async function fetchData() {
+  const url = `${SHEET_CSV_URL}&_t=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parseRosterCsv(await res.text());
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+      continue;
     }
-  }, 1000);
+
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (ch !== '\r') {
+      field += ch;
+    }
+  }
+
+  row.push(field);
+  rows.push(row);
+  return rows;
+}
+
+function parseRosterCsv(csv) {
+  const rows = parseCsv(csv);
+  const headerIndex = rows.findIndex(row =>
+    row.some(cell => cell.trim() === 'idRespondente') &&
+    row.some(cell => cell.trim() === 'Selecionado?') &&
+    row.some(cell => cell.trim() === 'Nome')
+  );
+
+  if (headerIndex === -1) {
+    throw new Error('Não encontrei as colunas idRespondente, Selecionado? e Nome na planilha.');
+  }
+
+  const headers = new Map(rows[headerIndex].map((name, index) => [name.trim(), index]));
+  const valueAt = (row, label) => {
+    const index = headers.get(label);
+    return index === undefined ? '' : String(row[index] ?? '').trim();
+  };
+
+  return rows.slice(headerIndex + 1)
+    .map((row, offset) => {
+      const rowNumber = headerIndex + offset + 2;
+      const nome = valueAt(row, 'Nome');
+      const grupo = valueAt(row, 'Grupo Focal');
+      if (!nome || !grupo) return null;
+
+      const selectedRaw = valueAt(row, 'Selecionado?');
+      const score = average([
+        numberValue(valueAt(row, 'Capacidade descritiva')),
+        numberValue(valueAt(row, 'Conforto social')),
+        numberValue(valueAt(row, 'Assertividade')),
+        numberValue(valueAt(row, 'Influência social')),
+      ]);
+
+      return {
+        id: valueAt(row, 'idRespondente'),
+        rowNumber,
+        sheetSelected: isSelectedValue(selectedRaw),
+        selected: isSelectedValue(selectedRaw),
+        nome,
+        grupo,
+        faixa: valueAt(row, 'Faixa Etária'),
+        sexo: valueAt(row, 'Sexo'),
+        ocup: valueAt(row, 'Ocupação'),
+        voto: valueAt(row, 'Voto em 2022'),
+        ideo: valueAt(row, 'Ideologia Política'),
+        percepcao: valueAt(row, 'Percepção de Comunicação'),
+        score,
+      };
+    })
+    .filter(Boolean);
+}
+
+function applyData(data, { preserveSelections = true } = {}) {
+  data.forEach(p => {
+    const key = participantKey(p);
+    if (!preserveSelections || !selectionState.has(key)) {
+      selectionState.set(key, Boolean(p.sheetSelected));
+    }
+    p.selected = selectionState.get(key);
+  });
+  allData = data;
+}
+
+// ── STATUS ───────────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'status-dot ' + (state === 'live' ? 'live' : state === 'error' ? 'error' : '');
+  text.innerHTML = msg;
+}
+
+function setSelectionMessage(msg, state = '') {
+  const el = document.getElementById('selectionMessage');
+  el.className = `selection-message ${state}`.trim();
+  el.textContent = msg;
+}
+
+function clearSelectionMessage() {
+  setSelectionMessage('');
+}
+
+async function refresh({ preserveSelections = true } = {}) {
+  try {
+    const data = await fetchData();
+    applyData(data, { preserveSelections });
+
+    const groups = [...new Set(allData.map(p => p.grupo).filter(Boolean))].sort();
+    if (!activeGroup || !groups.includes(activeGroup)) activeGroup = groups[0] || '';
+    syncGroupButtons(groups);
+    renderGroup(activeGroup);
+
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setStatus('live', `Dados carregados às <strong>${now}</strong>`);
+  } catch (err) {
+    setStatus('error', `Erro ao buscar dados: ${err.message}`);
+  }
 }
 
 async function manualRefresh() {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('spinning');
-  clearInterval(refreshTimer);
-  clearInterval(countdownTimer);
-  document.getElementById('countdownText').textContent = '· atualizando…';
-  await refresh();
-  startCountdown();
-  refreshTimer = setInterval(() => { refresh(); startCountdown(); }, REFRESH_MS);
+  setStatus('', 'Atualizando…');
+  await refresh({ preserveSelections: true });
   setTimeout(() => btn.classList.remove('spinning'), 600);
-}
-
-
-function setStatus(state, msg) {
-  const dot  = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  dot.className  = 'status-dot ' + (state === 'live' ? 'live' : state === 'error' ? 'error' : '');
-  text.innerHTML = msg;
-}
-
-async function refresh() {
-  try {
-    const data = await fetchData();
-    allData = data;
-
-    const now  = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setStatus('live', `Atualizado às <strong>${now}</strong>`);
-    startCountdown();
-
-    const groups = [...new Set(data.map(p => p.grupo).filter(Boolean))].sort();
-    syncGroupButtons(groups);
-
-    if (!activeGroup || !groups.includes(activeGroup)) activeGroup = groups[0];
-    renderGroup(activeGroup);
-
-  } catch(err) {
-    setStatus('error', `Erro ao buscar dados: ${err.message}`);
-  }
 }
 
 // ── CONNECT ───────────────────────────────────────────────────────────────────
 async function connect() {
   const input = document.getElementById('scriptUrl').value.trim();
   const errEl = document.getElementById('setupError');
-  const btn   = document.getElementById('connectBtn');
+  const btn = document.getElementById('connectBtn');
 
   errEl.style.display = 'none';
 
@@ -629,27 +943,12 @@ async function connect() {
 
   try {
     scriptUrl = input;
-    const data = await fetchData();
-    allData = data;
-
-    localStorage.setItem(STORAGE_KEY, scriptUrl);
+    setStoredScriptUrl(scriptUrl);
 
     document.getElementById('setupScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.remove('hidden');
-
-    const groups = [...new Set(data.map(p => p.grupo).filter(Boolean))].sort();
-    activeGroup = groups[0];
-    syncGroupButtons(groups);
-    renderGroup(activeGroup);
-
-    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setStatus('live', `Atualizado às <strong>${now}</strong>`);
-    startCountdown();
-
-    clearInterval(refreshTimer);
-    refreshTimer = setInterval(() => { refresh(); startCountdown(); }, REFRESH_MS);
-
-  } catch(err) {
+    await refresh({ preserveSelections: false });
+  } catch (err) {
     errEl.textContent = `Não foi possível conectar: ${err.message}`;
     errEl.style.display = 'block';
   } finally {
@@ -659,7 +958,7 @@ async function connect() {
 }
 
 function resetSetup() {
-  clearInterval(refreshTimer);
+  document.getElementById('scriptUrl').value = scriptUrl;
   document.getElementById('dashboardScreen').classList.add('hidden');
   document.getElementById('setupScreen').classList.remove('hidden');
 }
@@ -677,68 +976,223 @@ function syncGroupButtons(groups) {
       activeGroup = g;
       bar.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      clearSelectionMessage();
       renderGroup(g);
     };
     bar.appendChild(btn);
   });
 }
 
+// ── SELECTIONS ────────────────────────────────────────────────────────────────
+function hasUnsavedChanges() {
+  return allData.some(p => isParticipantSelected(p) !== Boolean(p.sheetSelected));
+}
+
+function setParticipantSelected(key, selected) {
+  selectionState.set(key, selected);
+  const participant = allData.find(p => participantKey(p) === key);
+  if (participant) participant.selected = selected;
+  clearSelectionMessage();
+  renderGroup(activeGroup);
+}
+
+function selectActiveGroup(selected) {
+  allData
+    .filter(p => p.grupo === activeGroup)
+    .forEach(p => {
+      selectionState.set(participantKey(p), selected);
+      p.selected = selected;
+    });
+  clearSelectionMessage();
+  renderGroup(activeGroup);
+}
+
+function updateSelectionSummary(participants, selectedParticipants) {
+  const count = selectedParticipants.length;
+  const total = participants.length;
+  const countLabel = count === 1 ? 'selecionado' : 'selecionados';
+  document.getElementById('selectionCount').textContent = `${count} ${countLabel} de ${total}`;
+
+  document.getElementById('selectAllBtn').disabled = saveInProgress || !total;
+  document.getElementById('clearGroupBtn').disabled = saveInProgress || !total;
+  document.getElementById('saveBtn').disabled = saveInProgress || !allData.length || !hasUnsavedChanges();
+}
+
+function buildSelectionPayload() {
+  return {
+    action: 'updateSelections',
+    spreadsheetId: SHEET_ID,
+    sheetUrl: SHEET_URL,
+    selectionColumn: 'C',
+    selectedValue: 'Sim',
+    unselectedValue: 'Não',
+    updatedAt: new Date().toISOString(),
+    selections: allData.map(p => {
+      const selected = isParticipantSelected(p);
+      return {
+        rowNumber: p.rowNumber,
+        idRespondente: p.id,
+        nome: p.nome,
+        grupo: p.grupo,
+        selected,
+        value: selected ? 'Sim' : 'Não',
+      };
+    }),
+  };
+}
+
+async function postSelectionPayload(payload) {
+  const body = JSON.stringify(payload);
+
+  try {
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body,
+    });
+
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; }
+    catch {}
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (json?.ok === false) throw new Error(json.error || 'O Apps Script recusou a atualização.');
+    return json || { ok: true };
+  } catch (err) {
+    if (!/failed to fetch|networkerror|load failed|cors/i.test(err.message)) throw err;
+
+    await fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      body,
+    });
+    return { ok: true, opaque: true };
+  }
+}
+
+function findSelectionMismatches(freshData, intendedSelections) {
+  const freshByKey = new Map(freshData.map(p => [participantKey(p), p]));
+  const mismatches = [];
+
+  intendedSelections.forEach((selected, key) => {
+    const fresh = freshByKey.get(key);
+    if (!fresh || Boolean(fresh.sheetSelected) !== selected) mismatches.push(key);
+  });
+
+  return mismatches;
+}
+
+async function fetchVerifiedSelections(intendedSelections) {
+  let freshData = [];
+  let mismatches = [];
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await wait(1200);
+    freshData = await fetchData();
+    mismatches = findSelectionMismatches(freshData, intendedSelections);
+    if (!mismatches.length) return freshData;
+  }
+
+  throw new Error(`Não consegui confirmar ${mismatches.length} alteração(ões) na coluna C. Verifique se o Apps Script aceita action=updateSelections.`);
+}
+
+async function saveSelections() {
+  if (saveInProgress) return;
+
+  if (!hasUnsavedChanges()) {
+    setSelectionMessage('Nenhuma alteração pendente para enviar.');
+    return;
+  }
+
+  const intendedSelections = new Map(allData.map(p => [participantKey(p), isParticipantSelected(p)]));
+  saveInProgress = true;
+  renderGroup(activeGroup);
+  setSelectionMessage('Enviando seleção para a planilha…');
+
+  try {
+    await postSelectionPayload(buildSelectionPayload());
+    const freshData = await fetchVerifiedSelections(intendedSelections);
+    applyData(freshData, { preserveSelections: false });
+    renderGroup(activeGroup);
+
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setStatus('live', `Seleção salva às <strong>${now}</strong>`);
+    setSelectionMessage('Seleção enviada e confirmada na planilha.', 'success');
+  } catch (err) {
+    setSelectionMessage(`Não foi possível enviar a seleção: ${err.message}`, 'error');
+  } finally {
+    saveInProgress = false;
+    renderGroup(activeGroup);
+  }
+}
+
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function renderGroup(group) {
-  document.getElementById('headerGroup').textContent = group;
+  document.getElementById('headerGroup').textContent = group || '—';
 
   const participants = allData
     .filter(p => p.grupo === group)
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const selectedParticipants = participants.filter(isParticipantSelected);
 
-  const fem    = participants.filter(p => p.sexo === 'Feminino').length;
-  const masc   = participants.filter(p => p.sexo === 'Masculino').length;
-  const lula   = participants.filter(p => p.voto === 'Lula (PT)').length;
-  const bolso  = participants.filter(p => p.voto === 'Jair Bolsonaro (PL)').length;
-  const nenhum = participants.filter(p => p.voto === 'Nenhum / Branco / Nulo').length;
-  const scores = participants.map(p => p.score).filter(s => s !== null);
-  const avgScore = scores.length ? scores.reduce((a,b) => a+b, 0) / scores.length : null;
+  const fem = selectedParticipants.filter(p => p.sexo === 'Feminino').length;
+  const masc = selectedParticipants.filter(p => p.sexo === 'Masculino').length;
+  const lula = selectedParticipants.filter(p => p.voto === 'Lula (PT)').length;
+  const bolso = selectedParticipants.filter(p => p.voto === 'Jair Bolsonaro (PL)').length;
+  const nenhum = selectedParticipants.filter(p => p.voto === 'Nenhum / Branco / Nulo').length;
+  const scores = selectedParticipants.map(p => p.score).filter(s => s !== null);
+  const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
 
   document.getElementById('statGender').textContent = `${fem} / ${masc}`;
-  document.getElementById('statAvg').textContent    = fmt(avgScore);
-  document.getElementById('statVoto').textContent   = `${lula} / ${bolso} / ${nenhum}`;
+  document.getElementById('statAvg').textContent = fmt(avgScore);
+  document.getElementById('statVoto').textContent = `${lula} / ${bolso} / ${nenhum}`;
+  updateSelectionSummary(participants, selectedParticipants);
 
-  const list  = document.getElementById('cardsList');
+  const list = document.getElementById('cardsList');
   const empty = document.getElementById('emptyState');
   list.innerHTML = '';
 
-  if (!participants.length) { empty.classList.remove('hidden'); return; }
+  if (!participants.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
   empty.classList.add('hidden');
 
   participants.forEach(p => {
-    const isFem     = p.sexo === 'Feminino';
-    const sexCls    = isFem ? 'fem' : 'masc';
-    const votoInfo  = VOTO_MAP[p.voto]  ?? { cls: 'nenhum', label: p.voto || '—' };
-    const ideoInfo  = IDEO_MAP[p.ideo]  ?? { cls: 'centro', label: p.ideo || '—' };
-    const ocup      = formatOcup(p.ocup);
-    const scorePct  = p.score !== null ? (p.score / 10) * 100 : 0;
-    const percRaw   = (p.percepcao || '').toLowerCase();
-    const isMuito   = percRaw.includes('muito');
-    const cCls      = isMuito ? 'alto' : 'medio';
-    const cLbl      = isMuito
+    const key = participantKey(p);
+    const selected = isParticipantSelected(p);
+    const isFem = p.sexo === 'Feminino';
+    const sexCls = isFem ? 'fem' : 'masc';
+    const votoInfo = VOTO_MAP[p.voto] ?? { cls: 'nenhum', label: p.voto || '—' };
+    const ideoInfo = IDEO_MAP[p.ideo] ?? { cls: 'centro', label: p.ideo || '—' };
+    const ocup = formatOcup(p.ocup);
+    const scorePct = p.score !== null ? (p.score / 10) * 100 : 0;
+    const percRaw = (p.percepcao || '').toLowerCase();
+    const isMuito = percRaw.includes('muito');
+    const cCls = isMuito ? 'alto' : 'medio';
+    const cLbl = isMuito
       ? (isFem ? 'Muito comunicativa' : 'Muito comunicativo')
       : (isFem ? 'Comunicativa' : 'Comunicativo');
 
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = `card ${selected ? 'selected' : 'unselected'}`;
     card.innerHTML = `
-      <div class="avatar ${sexCls}">${initials(p.nome)}</div>
+      <label class="card-check">
+        <input type="checkbox" class="selection-checkbox">
+      </label>
+      <div class="avatar ${sexCls}">${escapeHtml(initials(p.nome))}</div>
       <div class="card-body">
         <div class="card-name-row">
-          <span class="card-name">${shortName(p.nome)}</span>
+          <span class="card-name">${escapeHtml(shortName(p.nome))}</span>
           <span class="gender-badge ${isFem ? 'f' : 'm'}">${isFem ? 'F' : 'M'}</span>
-          <span class="comport-tag ${cCls}">${cLbl}</span>
+          <span class="comport-tag ${cCls}">${escapeHtml(cLbl)}</span>
         </div>
         <div class="card-meta">
-          <span class="meta-item meta-vote ${votoInfo.cls}">Voto em 2022:&nbsp;<span class="cname">${votoInfo.label}</span></span>
-          <span class="meta-item">${p.faixa || '—'}</span>
-          <span class="meta-item">${ocup}</span>
-          <span class="meta-item"><span class="meta-ideo ${ideoInfo.cls}">${ideoInfo.label}</span></span>
+          <span class="meta-item meta-vote ${votoInfo.cls}">Voto em 2022:&nbsp;<span class="cname">${escapeHtml(votoInfo.label)}</span></span>
+          <span class="meta-item">${escapeHtml(p.faixa || '—')}</span>
+          <span class="meta-item">${escapeHtml(ocup)}</span>
+          <span class="meta-item"><span class="meta-ideo ${ideoInfo.cls}">${escapeHtml(ideoInfo.label)}</span></span>
         </div>
       </div>
       <div class="card-score">
@@ -747,26 +1201,25 @@ function renderGroup(group) {
         <div class="score-bar"><div class="score-fill" style="width:${scorePct}%"></div></div>
       </div>
     `;
+
+    const checkbox = card.querySelector('.selection-checkbox');
+    checkbox.checked = selected;
+    checkbox.disabled = saveInProgress;
+    checkbox.setAttribute('aria-label', `Selecionar ${p.nome}`);
+    checkbox.addEventListener('change', () => setParticipantSelected(key, checkbox.checked));
     list.appendChild(card);
   });
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (function init() {
-  // Always skip setup
+  document.getElementById('scriptUrl').value = scriptUrl;
+  document.querySelector('.sheet-link').href = SHEET_URL;
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('dashboardScreen').classList.remove('hidden');
 
-  setStatus('', 'Conectando…');
-
-  refresh().then(() => {
-    clearInterval(refreshTimer);
-    startCountdown();
-    refreshTimer = setInterval(() => {
-      refresh();
-      startCountdown();
-    }, REFRESH_MS);
-  });
+  setStatus('', 'Carregando dados…');
+  refresh({ preserveSelections: false });
 })();
 </script>
 </body>
