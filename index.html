@@ -136,6 +136,98 @@
     line-height: 1.4;
   }
 
+  /* ── GROUP PICKER SCREEN ── */
+  .group-picker-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    gap: 26px;
+  }
+
+  .group-picker-copy {
+    max-width: 520px;
+  }
+
+  .group-picker-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .group-picker-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+  }
+
+  .group-picker-title span { font-style: italic; color: var(--text-secondary); }
+
+  .group-picker-copy p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  .group-picker-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .group-picker-btn {
+    min-height: 74px;
+    text-align: left;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  }
+
+  .group-picker-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--text-muted);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .group-picker-btn strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .group-picker-btn span {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .group-picker-loading,
+  .group-picker-error {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .group-picker-error { color: var(--accent-lula); }
+
+  .group-picker-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   /* ── STATUS BAR ── */
   .status-bar {
     display: flex;
@@ -402,6 +494,29 @@
   /* ── CARDS ── */
   .cards-list { display: flex; flex-direction: column; gap: 8px; }
 
+  .list-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 2px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .list-section-header:first-child { margin-top: 0; }
+
+  .list-section-header span {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-secondary);
+  }
+
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -531,6 +646,9 @@
 
   @media (max-width: 640px) {
     body { padding: 28px 18px 44px; }
+    .group-picker-screen { min-height: calc(100vh - 72px); }
+    .group-picker-title { font-size: 32px; }
+    .group-picker-list { grid-template-columns: 1fr; }
     .stats-row { grid-template-columns: 1fr; }
     .selection-toolbar { align-items: stretch; }
     .selection-actions { width: 100%; }
@@ -560,6 +678,22 @@
       </div>
       <div class="setup-error" id="setupError"></div>
       <button class="btn-primary" id="connectBtn" onclick="connect()">Conectar</button>
+    </div>
+  </div>
+
+  <!-- ── GROUP PICKER SCREEN ── -->
+  <div class="group-picker-screen hidden" id="groupPickerScreen">
+    <div class="group-picker-copy">
+      <div class="group-picker-label">Recrutamento qualitativo</div>
+      <div class="group-picker-title">Escolha o <span>grupo</span></div>
+      <p>Selecione o grupo focal que você quer revisar agora.</p>
+    </div>
+    <div class="group-picker-list" id="groupPickerList">
+      <div class="group-picker-loading">Carregando grupos…</div>
+    </div>
+    <div class="group-picker-error hidden" id="groupPickerError"></div>
+    <div class="group-picker-actions">
+      <button class="btn-config" onclick="resetSetup()">⚙ Reconfigurar Apps Script</button>
     </div>
   </div>
 
@@ -659,7 +793,7 @@ const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6ZqTzSp4-8
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let allData = [];
-let activeGroup = 'Grupo 2';
+let activeGroup = '';
 let selectionState = new Map();
 let saveInProgress = false;
 let scriptUrl = getStoredScriptUrl() || DEFAULT_SCRIPT_URL;
@@ -881,6 +1015,10 @@ function applyData(data, { preserveSelections = true } = {}) {
   allData = data;
 }
 
+function getGroups() {
+  return [...new Set(allData.map(p => p.grupo).filter(Boolean))].sort();
+}
+
 // ── STATUS ───────────────────────────────────────────────────────────────────
 function setStatus(state, msg) {
   const dot = document.getElementById('statusDot');
@@ -899,12 +1037,63 @@ function clearSelectionMessage() {
   setSelectionMessage('');
 }
 
+function showGroupPicker(groups = getGroups(), message = '') {
+  const picker = document.getElementById('groupPickerScreen');
+  const list = document.getElementById('groupPickerList');
+  const error = document.getElementById('groupPickerError');
+
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('dashboardScreen').classList.add('hidden');
+  picker.classList.remove('hidden');
+
+  list.innerHTML = '';
+  error.classList.toggle('hidden', !message);
+  error.textContent = message;
+
+  if (!groups.length) {
+    list.innerHTML = '<div class="group-picker-loading">Nenhum grupo encontrado.</div>';
+    return;
+  }
+
+  groups.forEach(group => {
+    const count = allData.filter(p => p.grupo === group).length;
+    const selectedCount = allData.filter(p => p.grupo === group && isParticipantSelected(p)).length;
+    const btn = document.createElement('button');
+    btn.className = 'group-picker-btn';
+    btn.type = 'button';
+    btn.innerHTML = `
+      <strong>${escapeHtml(group)}</strong>
+      <span>${selectedCount} selecionados de ${count}</span>
+    `;
+    btn.addEventListener('click', () => showDashboardForGroup(group));
+    list.appendChild(btn);
+  });
+}
+
+function showGroupPickerLoading() {
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('dashboardScreen').classList.add('hidden');
+  document.getElementById('groupPickerScreen').classList.remove('hidden');
+  document.getElementById('groupPickerError').classList.add('hidden');
+  document.getElementById('groupPickerList').innerHTML = '<div class="group-picker-loading">Carregando grupos…</div>';
+}
+
+function showDashboardForGroup(group) {
+  activeGroup = group;
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('groupPickerScreen').classList.add('hidden');
+  document.getElementById('dashboardScreen').classList.remove('hidden');
+  syncGroupButtons(getGroups());
+  clearSelectionMessage();
+  renderGroup(activeGroup);
+}
+
 async function refresh({ preserveSelections = true } = {}) {
   try {
     const data = await fetchData();
     applyData(data, { preserveSelections });
 
-    const groups = [...new Set(allData.map(p => p.grupo).filter(Boolean))].sort();
+    const groups = getGroups();
     if (!activeGroup || !groups.includes(activeGroup)) activeGroup = groups[0] || '';
     syncGroupButtons(groups);
     renderGroup(activeGroup);
@@ -913,6 +1102,21 @@ async function refresh({ preserveSelections = true } = {}) {
     setStatus('live', `Dados carregados às <strong>${now}</strong>`);
   } catch (err) {
     setStatus('error', `Erro ao buscar dados: ${err.message}`);
+  }
+}
+
+async function loadInitialGroups() {
+  showGroupPickerLoading();
+
+  try {
+    const data = await fetchData();
+    applyData(data, { preserveSelections: false });
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setStatus('live', `Dados carregados às <strong>${now}</strong>`);
+    activeGroup = '';
+    showGroupPicker(getGroups());
+  } catch (err) {
+    showGroupPicker([], `Erro ao buscar grupos: ${err.message}`);
   }
 }
 
@@ -945,9 +1149,7 @@ async function connect() {
     scriptUrl = input;
     setStoredScriptUrl(scriptUrl);
 
-    document.getElementById('setupScreen').classList.add('hidden');
-    document.getElementById('dashboardScreen').classList.remove('hidden');
-    await refresh({ preserveSelections: false });
+    await loadInitialGroups();
   } catch (err) {
     errEl.textContent = `Não foi possível conectar: ${err.message}`;
     errEl.style.display = 'block';
@@ -960,6 +1162,7 @@ async function connect() {
 function resetSetup() {
   document.getElementById('scriptUrl').value = scriptUrl;
   document.getElementById('dashboardScreen').classList.add('hidden');
+  document.getElementById('groupPickerScreen').classList.add('hidden');
   document.getElementById('setupScreen').classList.remove('hidden');
 }
 
@@ -1135,6 +1338,7 @@ function renderGroup(group) {
     .filter(p => p.grupo === group)
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const selectedParticipants = participants.filter(isParticipantSelected);
+  const unselectedParticipants = participants.filter(p => !isParticipantSelected(p));
 
   const fem = selectedParticipants.filter(p => p.sexo === 'Feminino').length;
   const masc = selectedParticipants.filter(p => p.sexo === 'Masculino').length;
@@ -1159,7 +1363,15 @@ function renderGroup(group) {
   }
   empty.classList.add('hidden');
 
-  participants.forEach(p => {
+  const appendSection = (title, sectionParticipants) => {
+    const header = document.createElement('div');
+    header.className = 'list-section-header';
+    header.innerHTML = `${escapeHtml(title)} <span>${sectionParticipants.length}</span>`;
+    list.appendChild(header);
+    sectionParticipants.forEach(appendParticipantCard);
+  };
+
+  const appendParticipantCard = p => {
     const key = participantKey(p);
     const selected = isParticipantSelected(p);
     const isFem = p.sexo === 'Feminino';
@@ -1208,7 +1420,10 @@ function renderGroup(group) {
     checkbox.setAttribute('aria-label', `Selecionar ${p.nome}`);
     checkbox.addEventListener('change', () => setParticipantSelected(key, checkbox.checked));
     list.appendChild(card);
-  });
+  };
+
+  appendSection('Selecionados', selectedParticipants);
+  appendSection('Não selecionados', unselectedParticipants);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -1216,10 +1431,9 @@ function renderGroup(group) {
   document.getElementById('scriptUrl').value = scriptUrl;
   document.querySelector('.sheet-link').href = SHEET_URL;
   document.getElementById('setupScreen').classList.add('hidden');
-  document.getElementById('dashboardScreen').classList.remove('hidden');
+  document.getElementById('dashboardScreen').classList.add('hidden');
 
-  setStatus('', 'Carregando dados…');
-  refresh({ preserveSelections: false });
+  loadInitialGroups();
 })();
 </script>
 </body>
