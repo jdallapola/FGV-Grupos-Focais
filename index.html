@@ -532,11 +532,35 @@
   }
 
   .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); background: var(--surface-hover); }
+  .card.dragging { opacity: 0.42; box-shadow: none; }
+  .card.drop-before { box-shadow: inset 0 3px 0 rgba(45, 122, 58, 0.65), var(--shadow-hover); }
+  .card.drop-after { box-shadow: inset 0 -3px 0 rgba(45, 122, 58, 0.65), var(--shadow-hover); }
   .card.selected { border-color: rgba(45, 122, 58, 0.35); }
   .card.unselected { border-style: dashed; }
   .card.unselected .avatar,
   .card.unselected .card-body,
   .card.unselected .card-score { opacity: 0.62; }
+
+  .drag-handle {
+    width: 18px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-muted);
+    cursor: grab;
+    flex-shrink: 0;
+  }
+
+  .drag-handle span {
+    width: 12px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+
+  .card:active .drag-handle { cursor: grabbing; }
 
   .card-check {
     display: inline-flex;
@@ -745,7 +769,7 @@
     </div>
 
     <!-- Section label -->
-    <div class="section-label">Fichas · todos os candidatos · ordenado por engajamento</div>
+    <div class="section-label">Fichas · todos os candidatos · ordem manual</div>
 
     <div class="selection-toolbar">
       <div class="selection-summary">
@@ -761,7 +785,7 @@
             <path d="M17 21v-8H7v8"></path>
             <path d="M7 3v5h8"></path>
           </svg>
-          Enviar seleção
+          Enviar seleção/ordem
         </button>
       </div>
     </div>
@@ -795,6 +819,9 @@ const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6ZqTzSp4-8
 let allData = [];
 let activeGroup = '';
 let selectionState = new Map();
+let roomOrderState = new Map();
+let dirtyOrderGroups = new Set();
+let dragState = { key: null, section: null };
 let saveInProgress = false;
 let scriptUrl = getStoredScriptUrl() || DEFAULT_SCRIPT_URL;
 
@@ -1019,6 +1046,43 @@ function getGroups() {
   return [...new Set(allData.map(p => p.grupo).filter(Boolean))].sort();
 }
 
+function defaultGroupOrder(group) {
+  return allData
+    .filter(p => p.grupo === group)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .map(participantKey);
+}
+
+function ensureGroupOrder(group) {
+  if (!group) return [];
+
+  const validKeys = new Set(allData.filter(p => p.grupo === group).map(participantKey));
+  const existing = roomOrderState.get(group) || [];
+  const defaultOrder = defaultGroupOrder(group);
+  const merged = [
+    ...existing.filter(key => validKeys.has(key)),
+    ...defaultOrder.filter(key => !existing.includes(key)),
+  ];
+
+  roomOrderState.set(group, merged);
+  return merged;
+}
+
+function orderParticipants(group, participants) {
+  const order = ensureGroupOrder(group);
+  const indexByKey = new Map(order.map((key, index) => [key, index]));
+
+  return [...participants].sort((a, b) => {
+    const aIndex = indexByKey.get(participantKey(a)) ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = indexByKey.get(participantKey(b)) ?? Number.MAX_SAFE_INTEGER;
+    return aIndex - bIndex;
+  });
+}
+
+function getOrderedGroupParticipants(group) {
+  return orderParticipants(group, allData.filter(p => p.grupo === group));
+}
+
 // ── STATUS ───────────────────────────────────────────────────────────────────
 function setStatus(state, msg) {
   const dot = document.getElementById('statusDot');
@@ -1188,7 +1252,8 @@ function syncGroupButtons(groups) {
 
 // ── SELECTIONS ────────────────────────────────────────────────────────────────
 function hasUnsavedChanges() {
-  return allData.some(p => isParticipantSelected(p) !== Boolean(p.sheetSelected));
+  return dirtyOrderGroups.size > 0 ||
+    allData.some(p => isParticipantSelected(p) !== Boolean(p.sheetSelected));
 }
 
 function setParticipantSelected(key, selected) {
@@ -1210,6 +1275,90 @@ function selectActiveGroup(selected) {
   renderGroup(activeGroup);
 }
 
+function clearDropTargets() {
+  document
+    .querySelectorAll('.card.drop-before, .card.drop-after')
+    .forEach(card => card.classList.remove('drop-before', 'drop-after'));
+}
+
+function clearDragVisuals() {
+  clearDropTargets();
+  document
+    .querySelectorAll('.card.dragging')
+    .forEach(card => card.classList.remove('dragging'));
+}
+
+function getDropPosition(card, event) {
+  const rect = card.getBoundingClientRect();
+  return event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+}
+
+function canDropOnCard(card) {
+  return dragState.key &&
+    card.dataset.participantKey &&
+    dragState.key !== card.dataset.participantKey &&
+    dragState.section === card.dataset.section;
+}
+
+function moveParticipantInActiveGroup(sourceKey, targetKey, position) {
+  if (!sourceKey || !targetKey || sourceKey === targetKey || !activeGroup) return;
+
+  const order = ensureGroupOrder(activeGroup).filter(key => key !== sourceKey);
+  const targetIndex = order.indexOf(targetKey);
+  if (targetIndex === -1) return;
+
+  const insertAt = position === 'after' ? targetIndex + 1 : targetIndex;
+  order.splice(insertAt, 0, sourceKey);
+  roomOrderState.set(activeGroup, order);
+  dirtyOrderGroups.add(activeGroup);
+  clearSelectionMessage();
+  renderGroup(activeGroup);
+}
+
+function attachDragHandlers(card) {
+  card.addEventListener('dragstart', event => {
+    if (saveInProgress) {
+      event.preventDefault();
+      return;
+    }
+
+    dragState = {
+      key: card.dataset.participantKey,
+      section: card.dataset.section,
+    };
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', dragState.key);
+    requestAnimationFrame(() => card.classList.add('dragging'));
+  });
+
+  card.addEventListener('dragend', () => {
+    dragState = { key: null, section: null };
+    clearDragVisuals();
+  });
+
+  card.addEventListener('dragover', event => {
+    if (!canDropOnCard(card)) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const position = getDropPosition(card, event);
+    clearDropTargets();
+    card.classList.add(position === 'after' ? 'drop-after' : 'drop-before');
+  });
+
+  card.addEventListener('drop', event => {
+    if (!canDropOnCard(card)) return;
+
+    event.preventDefault();
+    const position = getDropPosition(card, event);
+    const sourceKey = dragState.key || event.dataTransfer.getData('text/plain');
+    const targetKey = card.dataset.participantKey;
+    dragState = { key: null, section: null };
+    clearDragVisuals();
+    moveParticipantInActiveGroup(sourceKey, targetKey, position);
+  });
+}
+
 function updateSelectionSummary(participants, selectedParticipants) {
   const count = selectedParticipants.length;
   const total = participants.length;
@@ -1222,6 +1371,18 @@ function updateSelectionSummary(participants, selectedParticipants) {
 }
 
 function buildSelectionPayload() {
+  const roomOrders = [...dirtyOrderGroups].map(group => ({
+    group,
+    respondents: getOrderedGroupParticipants(group).map((p, index) => ({
+      order: index + 1,
+      rowNumber: p.rowNumber,
+      idRespondente: p.id,
+      nome: p.nome,
+      grupo: p.grupo,
+      selected: isParticipantSelected(p),
+    })),
+  }));
+
   return {
     action: 'updateSelections',
     spreadsheetId: SHEET_ID,
@@ -1230,6 +1391,7 @@ function buildSelectionPayload() {
     selectedValue: 'Sim',
     unselectedValue: 'Não',
     updatedAt: new Date().toISOString(),
+    roomOrders,
     selections: allData.map(p => {
       const selected = isParticipantSelected(p);
       return {
@@ -1309,21 +1471,23 @@ async function saveSelections() {
   }
 
   const intendedSelections = new Map(allData.map(p => [participantKey(p), isParticipantSelected(p)]));
+  const dirtyGroupsBeforeSave = new Set(dirtyOrderGroups);
   saveInProgress = true;
   renderGroup(activeGroup);
-  setSelectionMessage('Enviando seleção para a planilha…');
+  setSelectionMessage('Enviando seleção e ordem para a planilha…');
 
   try {
     await postSelectionPayload(buildSelectionPayload());
     const freshData = await fetchVerifiedSelections(intendedSelections);
     applyData(freshData, { preserveSelections: false });
+    dirtyGroupsBeforeSave.forEach(group => dirtyOrderGroups.delete(group));
     renderGroup(activeGroup);
 
     const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setStatus('live', `Seleção salva às <strong>${now}</strong>`);
-    setSelectionMessage('Seleção enviada e confirmada na planilha.', 'success');
+    setSelectionMessage('Seleção confirmada. A ordem também foi enviada no payload.', 'success');
   } catch (err) {
-    setSelectionMessage(`Não foi possível enviar a seleção: ${err.message}`, 'error');
+    setSelectionMessage(`Não foi possível enviar a seleção/ordem: ${err.message}`, 'error');
   } finally {
     saveInProgress = false;
     renderGroup(activeGroup);
@@ -1334,9 +1498,7 @@ async function saveSelections() {
 function renderGroup(group) {
   document.getElementById('headerGroup').textContent = group || '—';
 
-  const participants = allData
-    .filter(p => p.grupo === group)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const participants = orderParticipants(group, allData.filter(p => p.grupo === group));
   const selectedParticipants = participants.filter(isParticipantSelected);
   const unselectedParticipants = participants.filter(p => !isParticipantSelected(p));
 
@@ -1389,7 +1551,15 @@ function renderGroup(group) {
 
     const card = document.createElement('div');
     card.className = `card ${selected ? 'selected' : 'unselected'}`;
+    card.dataset.participantKey = key;
+    card.dataset.section = selected ? 'selected' : 'unselected';
+    card.draggable = !saveInProgress;
     card.innerHTML = `
+      <div class="drag-handle" title="Arrastar para ordenar" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
       <label class="card-check">
         <input type="checkbox" class="selection-checkbox">
       </label>
@@ -1419,6 +1589,7 @@ function renderGroup(group) {
     checkbox.disabled = saveInProgress;
     checkbox.setAttribute('aria-label', `Selecionar ${p.nome}`);
     checkbox.addEventListener('change', () => setParticipantSelected(key, checkbox.checked));
+    attachDragHandlers(card);
     list.appendChild(card);
   };
 
